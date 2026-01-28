@@ -17,13 +17,107 @@
     under the License.
 */
 
-// Wait for the deviceready event before using any of Cordova's device APIs.
-// See https://cordova.apache.org/docs/en/latest/cordova/events/events.html#deviceready
-document.addEventListener('deviceready', onDeviceReady, false);
+(function() {
+    'use strict';
 
-function onDeviceReady() {
-    // Cordova is now initialized. Have fun!
+    // Constants
+    const PAGES = {
+        DASHBOARD: 'dashboard',
+        SETTINGS: 'settings'
+    };
 
-    console.log('Running cordova-' + cordova.platformId + '@' + cordova.version);
-    document.getElementById('deviceready').classList.add('ready');
-}
+    const ROUTES = {
+        DASHBOARD: '',
+        SETTINGS: '#settings'
+    };
+
+    const BUTTON_IDS = {
+        SETTINGS: 'settingsBtn',
+        LOGOUT: 'logoutBtn'
+    };
+
+    // Initialize Cordova
+    document.addEventListener('deviceready', onDeviceReady, false);
+
+    function onDeviceReady() {
+        console.log('Running cordova-' + cordova.platformId + '@' + cordova.version);
+        initialize();
+    }
+
+    function initialize() {
+        setupEventListeners();
+        initNavigation();
+    }
+
+    function setupEventListeners() {
+        attachButtonListener(BUTTON_IDS.SETTINGS, handleSettingsClick);
+        attachButtonListener(BUTTON_IDS.LOGOUT, handleLogoutClick);
+    }
+
+    function attachButtonListener(buttonId, handler) {
+        const button = document.getElementById(buttonId);
+        
+        if (!button) {
+            console.error('Button not found: ' + buttonId);
+            return;
+        }
+
+        button.addEventListener('click', handler);
+        console.log('Event listener added: ' + buttonId);
+    }
+
+    function handleSettingsClick() {
+        console.log('Settings button clicked');
+        navigateTo(ROUTES.SETTINGS);
+    }
+
+    function handleLogoutClick() {
+        console.log('Logout button clicked');
+        
+        if (isAndroidBridgeAvailable()) {
+            console.log('Calling AndroidBridge.logout()');
+            AndroidBridge.logout();
+        } else {
+            console.warn('AndroidBridge not available');
+            alert('Logout functionality - AndroidBridge not available');
+        }
+    }
+
+    function isAndroidBridgeAvailable() {
+        return typeof AndroidBridge !== 'undefined';
+    }
+
+    function navigateTo(route) {
+        window.location.hash = route;
+    }
+
+    function initNavigation() {
+        showPage();
+        window.addEventListener('hashchange', showPage);
+    }
+
+    function showPage() {
+        const currentHash = window.location.hash;
+        const isSettingsPage = currentHash === ROUTES.SETTINGS;
+        
+        console.log('Current hash: ' + currentHash);
+
+        togglePageVisibility(PAGES.DASHBOARD, !isSettingsPage);
+        togglePageVisibility(PAGES.SETTINGS, isSettingsPage);
+    }
+
+    function togglePageVisibility(pageId, isVisible) {
+        const page = document.getElementById(pageId);
+        
+        if (!page) {
+            console.error('Page not found: ' + pageId);
+            return;
+        }
+
+        page.style.display = isVisible ? 'flex' : 'none';
+        console.log((isVisible ? 'Showing' : 'Hiding') + ' page: ' + pageId);
+    }
+
+})();
+
+

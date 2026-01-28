@@ -1,49 +1,52 @@
 <!DOCTYPE html>
-<!--
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-     KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
--->
 <html>
     <head>
         <meta charset="utf-8">
-        <!--
-        Customize this policy to fit your own app's needs. For more guidance, please refer to the docs:
-            https://cordova.apache.org/docs/en/latest/
-        Some notes:
-            * https://ssl.gstatic.com is required only on Android and is needed for TalkBack to function properly
-            * Disables use of inline scripts in order to mitigate risk of XSS vulnerabilities. To change this:
-                * Enable inline JS: add 'unsafe-inline' to default-src
-        -->
         <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: https://ssl.gstatic.com 'unsafe-eval'; style-src 'self' 'unsafe-inline'; media-src *; img-src 'self' data: content:;">
         <meta name="format-detection" content="telephone=no">
         <meta name="msapplication-tap-highlight" content="no">
         <meta name="viewport" content="initial-scale=1, width=device-width, viewport-fit=cover">
         <meta name="color-scheme" content="light dark">
         <link rel="stylesheet" href="css/index.css">
-        <title>Hello World</title>
+        <title>Dashboard</title>
     </head>
     <body>
-        <div class="app">
+        <!-- Dashboard Section -->
+        <div id="dashboard" class="page">
             <h1>Dashboard</h1>
-            <div class="content">
-                <p class="welcome-text">Welcome to E2 Performance</p>
-                <button class="action-button" id="mainButton">Get Started</button>
+            <div class="button-container">
+                <button class="settings-btn" id="settingsBtn">Settings</button>
+                <button class="logout-btn" id="logoutBtn">Logout</button>
             </div>
         </div>
+
+        <!-- Settings Section -->
+        <div id="settings" class="page" style="display: none;">
+            <h1>Settings</h1>
+            <div class="settings-content">
+                <div class="setting-item">
+                    <span class="setting-label">App Version</span>
+                    <span class="setting-value">1.0.0</span>
+                </div>
+                <div class="setting-item">
+                    <span class="setting-label">Language</span>
+                    <span class="setting-value">English</span>
+                </div>
+                <div class="setting-item">
+                    <span class="setting-label">Notifications</span>
+                    <span class="setting-value">Enabled</span>
+                </div>
+                <div class="setting-item">
+                    <span class="setting-label">Theme</span>
+                    <span class="setting-value">Light Mode</span>
+                </div>
+                <div class="setting-item">
+                    <span class="setting-label">Data Sync</span>
+                    <span class="setting-value">Auto Sync</span>
+                </div>
+            </div>
+        </div>
+
         <script src="cordova.js"></script>
         <script src="js/index.js"></script>
     </body>

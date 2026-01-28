@@ -7,47 +7,50 @@
         <meta name="msapplication-tap-highlight" content="no">
         <meta name="viewport" content="initial-scale=1, width=device-width, viewport-fit=cover">
         <meta name="color-scheme" content="light dark">
-        <link rel="stylesheet" href="css/index.css">
-        <title>Dashboard</title>
+        <link rel="stylesheet" href="css/settings.css">
+        <title>Settings</title>
     </head>
     <body>
-        <!-- Dashboard Section -->
-        <div id="dashboard" class="page">
-            <h1>Dashboard</h1>
-            <div class="button-container">
-                <button class="settings-btn" id="settingsBtn">Settings</button>
-                <button class="logout-btn" id="logoutBtn">Logout</button>
+        <div class="settings-container">
+            <div class="settings-header">
+                <h1>Settings</h1>
+                <p class="back-hint">Press back button to return to dashboard</p>
             </div>
-        </div>
-
-        <!-- Settings Section -->
-        <div id="settings" class="page" style="display: none;">
-            <h1>Settings</h1>
+            
             <div class="settings-content">
                 <div class="setting-item">
-                    <span class="setting-label">App Version</span>
+                    <label class="setting-label">App Version</label>
                     <span class="setting-value">1.0.0</span>
                 </div>
+                
                 <div class="setting-item">
-                    <span class="setting-label">Language</span>
+                    <label class="setting-label">Language</label>
                     <span class="setting-value">English</span>
                 </div>
+                
                 <div class="setting-item">
-                    <span class="setting-label">Notifications</span>
+                    <label class="setting-label">Notifications</label>
                     <span class="setting-value">Enabled</span>
                 </div>
+                
                 <div class="setting-item">
-                    <span class="setting-label">Theme</span>
+                    <label class="setting-label">Theme</label>
                     <span class="setting-value">Light Mode</span>
                 </div>
+                
                 <div class="setting-item">
-                    <span class="setting-label">Data Sync</span>
+                    <label class="setting-label">Data Sync</label>
                     <span class="setting-value">Auto Sync</span>
                 </div>
             </div>
         </div>
-
+        
         <script src="cordova.js"></script>
-        <script src="js/index.js"></script>
+    </body>
+</html>
+
+                window.location.href = 'index.html';
+            }
+        </script>
     </body>
 </html>

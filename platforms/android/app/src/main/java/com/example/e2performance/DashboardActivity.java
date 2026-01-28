@@ -21,18 +21,11 @@ package com.example.e2performance;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.view.Gravity;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.Button;
-import android.widget.FrameLayout;
-import android.widget.LinearLayout;
+import android.webkit.JavascriptInterface;
+import android.webkit.WebView;
 import org.apache.cordova.*;
 
 public class DashboardActivity extends CordovaActivity {
-
-    private Button logoutButton;
-    private Button settingsButton;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -44,7 +37,7 @@ public class DashboardActivity extends CordovaActivity {
             moveTaskToBack(true);
         }
 
-        // Set by <content src="index.html" /> in config.xml
+        // Load index.html which contains both dashboard and settings pages
         loadUrl(launchUrl);
     }
 
@@ -52,76 +45,29 @@ public class DashboardActivity extends CordovaActivity {
     public void onStart() {
         super.onStart();
         
-        // Add buttons on top of the Cordova webview after it's created
-        addButtonsOverlay();
-    }
-
-    private void addButtonsOverlay() {
-        // Get the root view
-        ViewGroup rootView = (ViewGroup) findViewById(android.R.id.content);
-        
-        // Create buttons layout - vertical orientation
-        LinearLayout buttonLayout = new LinearLayout(this);
-        buttonLayout.setOrientation(LinearLayout.VERTICAL);
-        buttonLayout.setGravity(Gravity.CENTER);
-        buttonLayout.setPadding(32, 32, 32, 32);
-        buttonLayout.setBackgroundColor(0xEEFFFFFF); // Semi-transparent white background
-
-        // Logout button
-        logoutButton = new Button(this);
-        logoutButton.setText("Logout");
-        logoutButton.setTextSize(18);
-        logoutButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                logout();
+        // Add JavaScript interface for native navigation
+        if (appView != null && appView.getEngine() != null) {
+            Object webViewObject = appView.getEngine().getView();
+            if (webViewObject instanceof WebView) {
+                WebView webView = (WebView) webViewObject;
+                webView.addJavascriptInterface(new WebAppInterface(), "AndroidBridge");
             }
-        });
-
-        // Settings button
-        settingsButton = new Button(this);
-        settingsButton.setText("Settings");
-        settingsButton.setTextSize(18);
-        settingsButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                openSettings();
-            }
-        });
-
-        // Set button dimensions and margins
-        LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(
-            (int) (250 * getResources().getDisplayMetrics().density), // 250dp width
-            (int) (60 * getResources().getDisplayMetrics().density)   // 60dp height
-        );
-        buttonParams.setMargins(0, 16, 0, 16); // Vertical margin between buttons
-
-        buttonLayout.addView(logoutButton, buttonParams);
-        buttonLayout.addView(settingsButton, buttonParams);
-
-        // Add button layout centered on the screen
-        FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.WRAP_CONTENT,
-            FrameLayout.LayoutParams.WRAP_CONTENT
-        );
-        layoutParams.gravity = Gravity.CENTER; // Center both horizontally and vertically
-
-        rootView.addView(buttonLayout, layoutParams);
+        }
     }
 
-    private void logout() {
-        // Clear any session data if needed
-        Intent intent = new Intent(DashboardActivity.this, LoginActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        startActivity(intent);
-        finish();
-    }
-
-    private void openSettings() {
-        // Navigate to settings or show settings dialog
-        // You can implement this based on your requirements
-        if (appView != null) {
-            appView.loadUrl("javascript:alert('Settings clicked')");
+    public class WebAppInterface {
+        @JavascriptInterface
+        public void logout() {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    // Navigate to LoginActivity
+                    Intent intent = new Intent(DashboardActivity.this, LoginActivity.class);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                    startActivity(intent);
+                    finish();
+                }
+            });
         }
     }
 }
