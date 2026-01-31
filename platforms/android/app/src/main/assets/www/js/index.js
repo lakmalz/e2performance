@@ -41,6 +41,14 @@
 
     function onDeviceReady() {
         console.log('Running cordova-' + cordova.platformId + '@' + cordova.version);
+        
+        // Check if NavigationPlugin is available
+        if (window.NavigationPlugin) {
+            console.log('✓ NavigationPlugin available');
+        } else {
+            console.error('✗ NavigationPlugin NOT available');
+        }
+        
         initialize();
     }
 
@@ -72,14 +80,21 @@
     }
 
     function handleLogoutClick() {
-        console.log('Logout button clicked');
+        console.log('Logout button clicked - calling NavigationPlugin.logout()');
         
-        if (isAndroidBridgeAvailable()) {
-            console.log('Calling AndroidBridge.logout()');
-            AndroidBridge.logout();
+        if (window.NavigationPlugin) {
+            NavigationPlugin.logout(
+                function(result) {
+                    console.log('✓ Logout successful:', result);
+                },
+                function(error) {
+                    console.error('✗ Logout failed:', error);
+                    alert('Logout failed: ' + error);
+                }
+            );
         } else {
-            console.warn('AndroidBridge not available');
-            alert('Logout functionality - AndroidBridge not available');
+            console.error('NavigationPlugin not available');
+            alert('Navigation plugin not available');
         }
     }
 
