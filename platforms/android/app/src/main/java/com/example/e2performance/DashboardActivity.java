@@ -67,15 +67,15 @@ public class DashboardActivity extends CordovaActivity {
             ConfigXmlParser parser = new ConfigXmlParser();
             parser.parse(this);
             
-            // Initialize with CordovaInterface (this activity implements it via super class)
-            cordovaWebView.init((CordovaInterface)this, parser.getPluginEntries(), parser.getPreferences());
+            // Initialize with CordovaInterface from parent
+            cordovaWebView.init(cordovaInterface, parser.getPluginEntries(), parser.getPreferences());
             Log.d(TAG, "✓ Cordova initialized with pooled WebView");
             
             // Set as the app's WebView
             this.appView = cordovaWebView;
             
-            // Initialize plugin manager
-            this.init();
+            // Notify cordovaInterface about the plugin manager
+            cordovaInterface.onCordovaInit(appView.getPluginManager());
             
             // Set as content view
             View webViewView = engine.getView();

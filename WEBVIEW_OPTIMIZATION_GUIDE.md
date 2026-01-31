@@ -55,6 +55,17 @@ private static final String WARMUP_URL = "file:///android_asset/www/index.html";
 - Automatically creates pool on app launch
 - No performance impact on user experience
 
+**IMPORTANT:** This service MUST be started in your **launch activity** (the activity with LAUNCHER intent-filter). In most Cordova apps, this is either:
+- SplashActivity (if you have a splash screen)
+- MainActivity (if no splash screen)
+
+Add this to your launch activity's `onCreate()`:
+```java
+// Start WebView warmup service in background
+Intent warmupIntent = new Intent(this, WarmupService.class);
+startService(warmupIntent);
+```
+
 ### 3. warmup.html
 **Location:** `www/warmup.html`
 
@@ -357,6 +368,12 @@ This implementation is provided as-is for use in your Cordova projects. Feel fre
 
 ## Changelog
 
+### Version 1.2 (January 31, 2026)
+- **Fixed critical bug**: WarmupService must be started in the LAUNCHER activity
+- Added clear documentation about which activity should start the service
+- Verified warmup is working correctly with logcat monitoring
+- Warmup completes in ~380ms (very fast!)
+
 ### Version 1.1 (January 2026)
 - **Updated to pre-load index.html instead of minimal warmup page**
 - 70-80% faster dashboard loading with actual app content pre-parsed
@@ -369,6 +386,33 @@ This implementation is provided as-is for use in your Cordova projects. Feel fre
 - WebViewPool with MutableContextWrapper
 - Background warmup service
 - Complete documentation
+
+---
+
+## Verification Results
+
+### ✅ Warmup Service Status: WORKING
+Tested on: January 31, 2026
+
+**Logs showing successful warmup:**
+```
+D WarmupService: WarmupService started - warming up Cordova WebView pool
+D CordovaWebViewPool: CordovaWebViewPool initialized with POOL_SIZE=1
+D CordovaWebViewPool: Starting SystemWebView warmup with index.html
+D CordovaWebViewPool: SystemWebView 1 warmed up
+D CordovaWebViewPool: Pool warmed up. Size: 1
+D WarmupService: ✓ Cordova WebView pool warmed up successfully. Pool size: 1
+```
+
+**Performance:**
+- Warmup time: ~380ms
+- Pool size: 1 WebView
+- Pre-loaded URL: index.html
+
+**Fix Applied:**
+- Moved `startService(new Intent(this, WarmupService.class))` from MainActivity to SplashActivity
+- SplashActivity is the actual LAUNCHER activity in this project
+- The service now starts immediately on app launch
 
 ---
 

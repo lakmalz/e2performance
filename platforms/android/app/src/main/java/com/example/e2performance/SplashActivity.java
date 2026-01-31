@@ -34,7 +34,11 @@ public class SplashActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_splash);
 
-        // Navigate to LoginActivity after 5 seconds
+        // Start WebView warmup service in background
+        Intent warmupIntent = new Intent(this, WarmupService.class);
+        startService(warmupIntent);
+
+        // Navigate to LoginActivity after 3 seconds
         new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
             @Override
             public void run() {
