@@ -81,7 +81,7 @@ public class DashboardActivity extends CordovaActivity {
             View webViewView = engine.getView();
             setContentView(webViewView);
             
-            // Load the URL (content already pre-loaded, this triggers deviceready)
+            // Load the page normally - pooled WebView is fresh from warmup
             loadUrl(launchUrl);
             
             Log.d(TAG, "✓ Dashboard ready with all plugins including NavigationPlugin");
@@ -97,16 +97,23 @@ public class DashboardActivity extends CordovaActivity {
 
     @Override
     public void onDestroy() {
-        super.onDestroy();
-        
-        // Return WebView to pool for reuse
+        // DON'T return WebView to pool after use - it causes Cordova bridge issues
+        // The pool is only for initial warmup to speed up first load
         if (usingPooledWebView && pooledSystemWebView != null) {
-            CordovaWebViewPool pool = CordovaWebViewPool.getInstance(this);
-            pool.release(pooledSystemWebView);
-            Log.d(TAG, "SystemWebView returned to pool for reuse");
+            // Detach WebView from parent container
+            if (pooledSystemWebView.getParent() != null) {
+                ((android.view.ViewGroup) pooledSystemWebView.getParent()).removeView(pooledSystemWebView);
+            }
+            
+            Log.d(TAG, "WebView used, will be destroyed (not returned to pool)");
+            
+            // Don't return to pool - let it be destroyed normally
+            // This prevents "previous page load" errors on re-login
+            pooledSystemWebView = null;
+            this.appView = null;
         }
         
-        pooledSystemWebView = null;
+        super.onDestroy();
     }
 
     @Override
