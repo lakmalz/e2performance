@@ -105,17 +105,25 @@ public class CordovaActivityWithPool extends CordovaActivity {
             usingPooledComponents = true;
             Log.d(TAG, "✓ OPTION A: Got pre-warmed WebView + Engine + CordovaWebView (SAME instances!)");
 
-            // Step 1: Detach from old parent (if attached)
+            // Step 1: MAGIC LINE - Switch WebView context from Application → Activity
+            // This is CRITICAL for proper lifecycle, resources, and plugin compatibility
+            MutableContextWrapper contextWrapper = pool.getMutableContextWrapper();
+            if (contextWrapper != null) {
+                contextWrapper.setBaseContext(this);
+                Log.d(TAG, "✓ MAGIC: Switched WebView context from Application → Activity!");
+            }
+
+            // Step 2: Detach from old parent (if attached)
             detachFromParent(pooledSystemWebView);
 
-            // Step 2: Set as this activity's appView (SKIP init()!)
+            // Step 3: Set as this activity's appView (SKIP init()!)
             this.appView = pooledCordovaWebView;
             Log.d(TAG, "✓ Set appView to pooled instance (NO init() called - saves 500ms!)");
 
-            // Step 3: Re-bind CordovaInterface to THIS activity's context
+            // Step 4: Re-bind CordovaInterface to THIS activity's context
             rebindCordovaInterface();
 
-            // Step 4: Attach WebView to this activity's layout
+            // Step 5: Attach WebView to this activity's layout
             setContentView(pooledEngine.getView());
             Log.d(TAG, "✓ Attached WebView to new activity");
 
@@ -208,6 +216,7 @@ public class CordovaActivityWithPool extends CordovaActivity {
 
     /**
      * Navigate to hash immediately (content already loaded!)
+     * Uses history.replaceState to avoid back button issues
      * Shows WebView after navigation completes (zero flicker!)
      */
     private void navigateToHashInstantly(String hash) {
@@ -217,7 +226,18 @@ public class CordovaActivityWithPool extends CordovaActivity {
         }
 
         String cleanHash = hash.startsWith("#") ? hash : "#" + hash;
-        String js = "window.location.hash = '" + cleanHash + "';";
+        
+        // Use replaceState to replace current history entry (no back button!)
+        // This prevents back button from showing dashboard when user presses back
+        String js = 
+            "(function() {" +
+            "  if (window.history && window.history.replaceState) {" +
+            "    window.history.replaceState(null, '', '" + cleanHash + "');" +
+            "    window.dispatchEvent(new HashChangeEvent('hashchange'));" +
+            "  } else {" +
+            "    window.location.replace('" + cleanHash + "');" +
+            "  }" +
+            "})();";
 
         // Execute with minimal delay (just ensure JS context ready)
         pooledEngine.getView().postDelayed(new Runnable() {
@@ -226,7 +246,7 @@ public class CordovaActivityWithPool extends CordovaActivity {
                 pooledEngine.evaluateJavascript(js, new ValueCallback<String>() {
                     @Override
                     public void onReceiveValue(String result) {
-                        Log.d(TAG, "✓ Navigated to: " + cleanHash);
+                        Log.d(TAG, "✓ Navigated to: " + cleanHash + " (NO back history!)");
                         
                         // NOW make visible (after navigation)
                         pooledEngine.getView().setVisibility(View.VISIBLE);
@@ -241,6 +261,16 @@ public class CordovaActivityWithPool extends CordovaActivity {
     public void onDestroy() {
         // Release pooled components
         if (usingPooledComponents && pooledSystemWebView != null) {
+            // Clear hash and reset to base page for clean re-login
+            // Note: Can't use replaceState with file:// protocol, so just reset hash
+            try {
+                String clearJs = "window.location.hash = '';";
+                pooledEngine.evaluateJavascript(clearJs, null);
+                Log.d(TAG, "✓ Reset to base page for clean re-login");
+            } catch (Exception e) {
+                Log.w(TAG, "Failed to reset hash", e);
+            }
+            
             // Detach from parent
             if (pooledSystemWebView.getParent() != null) {
                 ((ViewGroup) pooledSystemWebView.getParent()).removeView(pooledSystemWebView);

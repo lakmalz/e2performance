@@ -10,11 +10,16 @@ import org.apache.cordova.engine.SystemWebViewEngine;
 
 /**
  * OPTION A: Pool for pre-warming complete Cordova stack
- * - SystemWebView (UI component)
+ * - SystemWebView (UI component) with MutableContextWrapper
  * - SystemWebViewEngine (wrapper)
  * - CordovaWebViewImpl (Cordova integration)
  * 
  * Enables reuse WITHOUT init() or loadUrl() for 95% faster performance
+ * 
+ * KEY TECHNIQUE: MutableContextWrapper
+ * - WebView created with Application context wrapped in MutableContextWrapper
+ * - When Activity starts: contextWrapper.setBaseContext(activity)
+ * - This rebinds WebView to Activity's context for proper lifecycle
  */
 public class CordovaWebViewPool {
     private static final String TAG = "CordovaWebViewPool";
@@ -29,6 +34,7 @@ public class CordovaWebViewPool {
     private SystemWebView preWarmedWebView;
     private SystemWebViewEngine preWarmedEngine;
     private CordovaWebViewImpl preWarmedCordovaWebView;
+    private MutableContextWrapper mutableContextWrapper;  // CRITICAL for context switching
     private boolean componentsReady = false;
 
     private CordovaWebViewPool(Context context) {
@@ -129,17 +135,39 @@ public class CordovaWebViewPool {
     }
 
     /**
-     * Create and configure a new SystemWebView with standard settings
+     * Create and configure a new SystemWebView with MutableContextWrapper
+     * 
+     * CRITICAL: Uses MutableContextWrapper so context can be switched later
+     * - Initial context: Application context (for warmup)
+     * - Later: Activity context (via setBaseContext in Activity)
      */
     private SystemWebView createConfiguredWebView() {
-        SystemWebView webView = new SystemWebView(applicationContext);
+        // Create wrapper WITHOUT base context initially
+        // Context will be set in Activity via setBaseContext()
+        mutableContextWrapper = new MutableContextWrapper(null);
+        mutableContextWrapper.setBaseContext(applicationContext);
+        
+        // Create WebView with wrapper context
+        SystemWebView webView = new SystemWebView(mutableContextWrapper);
+        
+        // Configure WebView settings
         webView.getSettings().setJavaScriptEnabled(true);
         webView.getSettings().setDomStorageEnabled(true);
         webView.getSettings().setDatabaseEnabled(true);
         webView.getSettings().setAllowFileAccess(true);
         webView.getSettings().setAllowContentAccess(true);
         webView.getSettings().setMediaPlaybackRequiresUserGesture(false);
+        
+        Log.d(TAG, "✓ WebView created with MutableContextWrapper (ready for context switch)");
         return webView;
+    }
+    
+    /**
+     * Get the MutableContextWrapper for context switching
+     * USAGE: Call this in Activity, then call setBaseContext(activity)
+     */
+    public MutableContextWrapper getMutableContextWrapper() {
+        return mutableContextWrapper;
     }
 
     /**
@@ -160,6 +188,7 @@ public class CordovaWebViewPool {
             preWarmedWebView = null;
             preWarmedEngine = null;
             preWarmedCordovaWebView = null;
+            mutableContextWrapper = null;
         }
         
         Log.d(TAG, "Components released (will need to re-warm for next use)");
