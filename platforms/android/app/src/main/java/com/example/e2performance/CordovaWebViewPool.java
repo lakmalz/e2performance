@@ -35,6 +35,7 @@ public class CordovaWebViewPool {
     private SystemWebViewEngine preWarmedEngine;
     private CordovaWebViewImpl preWarmedCordovaWebView;
     private MutableContextWrapper mutableContextWrapper;  // CRITICAL for context switching
+    private ConfigXmlParser configParser;  // Store for later plugin initialization in Activity
     private boolean componentsReady = false;
 
     private CordovaWebViewPool(Context context) {
@@ -52,15 +53,21 @@ public class CordovaWebViewPool {
 
     /**
      * OPTION A: Warm up complete Cordova stack for maximum reuse
-     * Creates WebView + Engine + CordovaWebView as REUSABLE components
+     * CRITICAL FIX: NO plugin initialization here (no Activity = would crash)
+     * Plugins will be initialized later in Activity with real context
      */
     public void warmUp() {
-        Log.d(TAG, "OPTION A: Starting comprehensive warmup (WebView + Engine + CordovaWebView)");
+        Log.d(TAG, "OPTION A: Starting warmup (WebView + Engine + CordovaWebView WITHOUT plugins)");
         
         mainHandler.post(new Runnable() {
             @Override
             public void run() {
                 try {
+                    // Parse config.xml and store for later plugin initialization
+                    configParser = new ConfigXmlParser();
+                    configParser.parse(applicationContext);
+                    Log.d(TAG, "✓ Parsed config.xml");
+                    
                     // Create SystemWebView
                     preWarmedWebView = createConfiguredWebView();
                     Log.d(TAG, "✓ SystemWebView created");
@@ -69,31 +76,16 @@ public class CordovaWebViewPool {
                     preWarmedEngine = new SystemWebViewEngine(preWarmedWebView);
                     Log.d(TAG, "✓ SystemWebViewEngine created");
                     
-                    // Create CordovaWebView
+                    // Create CordovaWebView (NO plugins yet - will init in Activity)
                     preWarmedCordovaWebView = new CordovaWebViewImpl(preWarmedEngine);
-                    Log.d(TAG, "✓ CordovaWebViewImpl created");
-                    
-                    // Initialize with dummy CordovaInterface (will be re-bound later)
-                    // This creates the PluginManager which we'll reuse
-                    CordovaInterface dummyInterface = new CordovaInterfaceImpl(null) {
-                        @Override
-                        public Object onMessage(String id, Object data) {
-                            return null;
-                        }
-                    };
-                    
-                    ConfigXmlParser parser = new ConfigXmlParser();
-                    parser.parse(applicationContext);
-                    
-                    preWarmedCordovaWebView.init(dummyInterface, parser.getPluginEntries(), parser.getPreferences());
-                    Log.d(TAG, "✓ CordovaWebView initialized with PluginManager");
+                    Log.d(TAG, "✓ CordovaWebViewImpl created (NO plugins - will init in Activity)");
                     
                     // Load index.html ONCE
                     preWarmedWebView.loadUrl(WARMUP_URL);
                     Log.d(TAG, "✓ Loaded: " + WARMUP_URL);
                     
                     componentsReady = true;
-                    Log.d(TAG, "✓ OPTION A: Pool ready with REUSABLE Cordova stack (NO init() needed!)");
+                    Log.d(TAG, "✓ OPTION A: Pool ready (plugins will init in Activity with real context)");
                     
                 } catch (Exception e) {
                     Log.e(TAG, "Failed to warm up Cordova stack", e);
@@ -169,6 +161,10 @@ public class CordovaWebViewPool {
     public MutableContextWrapper getMutableContextWrapper() {
         return mutableContextWrapper;
     }
+    
+    public ConfigXmlParser getConfigParser() {
+        return configParser;
+    }
 
     /**
      * Release components back to pool
@@ -189,6 +185,7 @@ public class CordovaWebViewPool {
             preWarmedEngine = null;
             preWarmedCordovaWebView = null;
             mutableContextWrapper = null;
+            configParser = null;
         }
         
         Log.d(TAG, "Components released (will need to re-warm for next use)");

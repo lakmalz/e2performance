@@ -96,8 +96,9 @@ public class CordovaActivityWithPool extends CordovaActivity {
             pooledSystemWebView = pool.getPreWarmedWebView();
             pooledEngine = pool.getPreWarmedEngine();
             pooledCordovaWebView = pool.getPreWarmedCordovaWebView();
+            ConfigXmlParser configParser = pool.getConfigParser();
 
-            if (pooledSystemWebView == null || pooledEngine == null || pooledCordovaWebView == null) {
+            if (pooledSystemWebView == null || pooledEngine == null || pooledCordovaWebView == null || configParser == null) {
                 Log.w(TAG, "OPTION A: Incomplete pooled components");
                 return false;
             }
@@ -120,23 +121,34 @@ public class CordovaActivityWithPool extends CordovaActivity {
             this.appView = pooledCordovaWebView;
             Log.d(TAG, "✓ Set appView to pooled instance (NO init() called - saves 500ms!)");
 
-            // Step 4: Re-bind CordovaInterface to THIS activity's context
+            // Step 4: CRITICAL FIX - Initialize plugins NOW with real Activity
+            // This avoids "runOnUiThread on null Activity" crash
+            if (!pooledCordovaWebView.isInitialized()) {
+                pooledCordovaWebView.init(
+                    this.cordovaInterface,
+                    configParser.getPluginEntries(),
+                    configParser.getPreferences()
+                );
+                Log.d(TAG, "✓ Initialized plugins with real Activity (NO CRASH!)");
+            }
+
+            // Step 5: Re-bind CordovaInterface to THIS activity's context
             rebindCordovaInterface();
 
-            // Step 5: Attach WebView to this activity's layout
+            // Step 6: Attach WebView to this activity's layout
             setContentView(pooledEngine.getView());
             Log.d(TAG, "✓ Attached WebView to new activity");
 
-            // Step 5: Hide initially if hash navigation (prevent flicker)
+            // Step 7: Hide initially if hash navigation (prevent flicker)
             if (pendingHashNavigation != null) {
                 pooledEngine.getView().setVisibility(View.INVISIBLE);
                 Log.d(TAG, "WebView hidden during hash navigation setup");
             }
 
-            // Step 6: Manually trigger lifecycle (NO loadUrl()!)
+            // Step 8: Manually trigger lifecycle (NO loadUrl()!)
             triggerManualLifecycle();
 
-            // Step 7: Navigate to hash or show immediately
+            // Step 9: Navigate to hash or show immediately
             if (pendingHashNavigation != null) {
                 navigateToHashInstantly(pendingHashNavigation);
             } else {
