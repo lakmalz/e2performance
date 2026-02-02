@@ -98,12 +98,14 @@ public class CordovaActivityWithPool extends CordovaActivity {
             // Set content view
             setContentView(engine.getView());
             
-            // If hash provided, navigate to it (index.html already loaded in pool!)
-            // Otherwise load URL normally
+            // CRITICAL: index.html is ALREADY loaded in the pool!
+            // If hash provided, navigate immediately WITHOUT reloading (prevents flicker)
+            // Otherwise, still load URL to ensure correct state
             if (targetHash != null && !targetHash.isEmpty()) {
                 Log.d(TAG, "Hash navigation requested: " + targetHash);
-                loadUrl(launchUrl); // Ensure we're at the right base URL
-                navigateToHash(targetHash, 100); // Navigate after short delay
+                Log.d(TAG, "Skipping loadUrl - index.html already loaded in pool");
+                // Navigate immediately - no delay needed since page is already loaded!
+                navigateToHash(targetHash, 0); // 0ms delay - instant!
             } else {
                 Log.d(TAG, "No hash provided, loading URL normally");
                 loadUrl(launchUrl);
