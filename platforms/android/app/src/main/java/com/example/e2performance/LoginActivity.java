@@ -39,7 +39,10 @@ public class LoginActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 // Navigate to DashboardActivity
+//                Intent intent = new Intent(LoginActivity.this, DashboardActivity.class);
+//                startActivity(intent);
                 Intent intent = new Intent(LoginActivity.this, DashboardActivity.class);
+                intent.putExtra("hash", "settings");
                 startActivity(intent);
                 finish();
             }

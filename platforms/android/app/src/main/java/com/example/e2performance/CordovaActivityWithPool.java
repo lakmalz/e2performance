@@ -4,6 +4,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
+import android.webkit.ValueCallback;
 import org.apache.cordova.*;
 import org.apache.cordova.engine.SystemWebView;
 import org.apache.cordova.engine.SystemWebViewEngine;
@@ -38,12 +39,23 @@ public class CordovaActivityWithPool extends CordovaActivity {
             moveTaskToBack(true);
         }
 
+        // Check if hash navigation is requested
+        String targetHash = null;
+        if (extras != null) {
+            targetHash = extras.getString("hash");
+        }
+
         // Try to use pooled WebView for optimization
-        if (initWithPooledWebView()) {
+        if (initWithPooledWebView(targetHash)) {
             Log.i(TAG, "✓ Using pre-warmed WebView from pool - 70-80% faster!");
         } else {
             Log.d(TAG, "Using standard Cordova initialization");
             loadUrl(launchUrl);
+            
+            // If hash navigation requested but using standard init, navigate after load
+            if (targetHash != null) {
+                navigateToHashAfterLoad(targetHash);
+            }
         }
     }
 
@@ -51,7 +63,7 @@ public class CordovaActivityWithPool extends CordovaActivity {
      * Initialize Cordova with a pre-warmed SystemWebView from the pool
      * Returns true if successful, false to fallback to standard init
      */
-    private boolean initWithPooledWebView() {
+    private boolean initWithPooledWebView(String targetHash) {
         try {
             // Attempt to get pre-warmed WebView from pool
             CordovaWebViewPool pool = CordovaWebViewPool.getInstance(this);
@@ -86,8 +98,16 @@ public class CordovaActivityWithPool extends CordovaActivity {
             // Set content view
             setContentView(engine.getView());
             
-            // Load the page
-            loadUrl(launchUrl);
+            // If hash provided, navigate to it (index.html already loaded in pool!)
+            // Otherwise load URL normally
+            if (targetHash != null && !targetHash.isEmpty()) {
+                Log.d(TAG, "Hash navigation requested: " + targetHash);
+                loadUrl(launchUrl); // Ensure we're at the right base URL
+                navigateToHash(targetHash, 100); // Navigate after short delay
+            } else {
+                Log.d(TAG, "No hash provided, loading URL normally");
+                loadUrl(launchUrl);
+            }
             
             Log.i(TAG, "✓ Successfully initialized with pooled WebView");
             return true;
@@ -139,5 +159,67 @@ public class CordovaActivityWithPool extends CordovaActivity {
      */
     protected boolean isUsingPooledWebView() {
         return usingPooledWebView;
+    }
+
+    /**
+     * Navigate to hash route using evaluateJavascript (NO PAGE RELOAD)
+     * Works perfectly with pooled WebView where index.html is already loaded
+     */
+    protected void navigateToHash(String hash, int delayMs) {
+        if (appView == null || appView.getEngine() == null) {
+            Log.w(TAG, "Cannot navigate to hash: appView not ready");
+            return;
+        }
+
+        appView.getView().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    // Clean hash (add # if not present)
+                    String cleanHash = hash.startsWith("#") ? hash : "#" + hash;
+                    String js = "window.location.hash = '" + cleanHash + "';";
+                    
+                    SystemWebViewEngine engine = (SystemWebViewEngine) appView.getEngine();
+                    engine.evaluateJavascript(js, new ValueCallback<String>() {
+                        @Override
+                        public void onReceiveValue(String result) {
+                            Log.d(TAG, "✓ Navigated to hash: " + cleanHash);
+                        }
+                    });
+                } catch (Exception e) {
+                    Log.e(TAG, "Failed to navigate to hash", e);
+                }
+            }
+        }, delayMs);
+    }
+
+    /**
+     * Navigate to hash after page load (for standard initialization)
+     * Uses longer delay to ensure page is fully loaded
+     */
+    protected void navigateToHashAfterLoad(String hash) {
+        navigateToHash(hash, 1000); // Longer delay for fresh page load
+    }
+
+    /**
+     * Execute custom JavaScript with result callback
+     */
+    protected void executeJavaScript(String js, ValueCallback<String> callback) {
+        if (appView != null && appView.getEngine() != null) {
+            try {
+                SystemWebViewEngine engine = (SystemWebViewEngine) appView.getEngine();
+                engine.evaluateJavascript(js, callback);
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to execute JavaScript", e);
+                if (callback != null) {
+                    callback.onReceiveValue(null);
+                }
+            }
+        } else {
+            Log.w(TAG, "Cannot execute JavaScript: appView not ready");
+            if (callback != null) {
+                callback.onReceiveValue(null);
+            }
+        }
     }
 }
