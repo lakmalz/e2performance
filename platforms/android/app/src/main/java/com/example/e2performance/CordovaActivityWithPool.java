@@ -5,6 +5,10 @@ import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.ValueCallback;
+import android.graphics.Color;
+import android.media.AudioManager;
+import android.widget.FrameLayout;
+import java.util.Locale;
 import org.apache.cordova.*;
 import org.apache.cordova.engine.SystemWebView;
 import org.apache.cordova.engine.SystemWebViewEngine;
@@ -135,20 +139,32 @@ public class CordovaActivityWithPool extends CordovaActivity {
             // Step 5: Re-bind CordovaInterface to THIS activity's context
             rebindCordovaInterface();
 
-            // Step 6: Attach WebView to this activity's layout
-            setContentView(pooledEngine.getView());
-            Log.d(TAG, "✓ Attached WebView to new activity");
+            // Step 6: CRITICAL - Execute FULL createViews() logic from CordovaActivity
+            // This is what makes UI visible properly!
+            executeFullCreateViewsLogic();
+            Log.d(TAG, "✓ Executed full createViews() logic (UI should be visible!)");
+            
+            // Step 7: Setup splash screen (from CordovaActivity.init() line 160)
+            cordovaInterface.pluginManager.postMessage("setupSplashScreen", null);
+            Log.d(TAG, "✓ Setup splash screen");
+            
+            // Step 8: Volume controls (from CordovaActivity.init() lines 163-165)
+            String volumePref = preferences.getString("DefaultVolumeStream", "");
+            if ("media".equals(volumePref.toLowerCase(Locale.ENGLISH))) {
+                setVolumeControlStream(AudioManager.STREAM_MUSIC);
+                Log.d(TAG, "✓ Volume controls configured");
+            }
 
-            // Step 7: Hide initially if hash navigation (prevent flicker)
+            // Step 9: Hide initially if hash navigation (prevent flicker)
             if (pendingHashNavigation != null) {
                 pooledEngine.getView().setVisibility(View.INVISIBLE);
                 Log.d(TAG, "WebView hidden during hash navigation setup");
             }
 
-            // Step 8: Manually trigger lifecycle (NO loadUrl()!)
+            // Step 10: Manually trigger lifecycle (NO loadUrl()!)
             triggerManualLifecycle();
 
-            // Step 9: Navigate to hash or show immediately
+            // Step 11: Navigate to hash or show immediately
             if (pendingHashNavigation != null) {
                 navigateToHashInstantly(pendingHashNavigation);
             } else {
@@ -168,6 +184,48 @@ public class CordovaActivityWithPool extends CordovaActivity {
             pooledCordovaWebView = null;
             return false;
         }
+    }
+
+    /**
+     * CRITICAL METHOD: Execute FULL createViews() logic from CordovaActivity
+     * This replicates ALL 5 steps from CordovaActivity.createViews() (lines 189-207)
+     * 
+     * Without this complete logic, you'll see black screen or missing UI!
+     */
+    private void executeFullCreateViewsLogic() {
+        // Step 1: Set WebView ID (CordovaActivity line 191)
+        appView.getView().setId(100);
+        Log.d(TAG, "  [createViews 1/5] Set WebView ID: 100");
+        
+        // Step 2: Set layout params to MATCH_PARENT (CordovaActivity lines 192-194)
+        appView.getView().setLayoutParams(new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT));
+        Log.d(TAG, "  [createViews 2/5] Set layout params: MATCH_PARENT");
+
+        // Step 3: CRITICAL - Set content view (CordovaActivity line 196)
+        // THIS is what actually attaches WebView to Activity and makes it visible!
+        setContentView(appView.getView());
+        Log.d(TAG, "  [createViews 3/5] setContentView() called - UI ATTACHED!");
+
+        // Step 4: Set background color if configured (CordovaActivity lines 198-205)
+        if (preferences.contains("BackgroundColor")) {
+            try {
+                int backgroundColor = preferences.getInteger("BackgroundColor", Color.BLACK);
+                appView.getView().setBackgroundColor(backgroundColor);
+                Log.d(TAG, "  [createViews 4/5] Background color: " + String.format("#%06X", (0xFFFFFF & backgroundColor)));
+            } catch (NumberFormatException e) {
+                Log.e(TAG, "  [createViews 4/5] Failed to parse background color", e);
+            }
+        } else {
+            Log.d(TAG, "  [createViews 4/5] No background color configured");
+        }
+
+        // Step 5: Request focus (CordovaActivity line 207)
+        appView.getView().requestFocusFromTouch();
+        Log.d(TAG, "  [createViews 5/5] Requested focus");
+        
+        Log.d(TAG, "  ✓ Full createViews() logic complete (all 5 steps executed)");
     }
 
     /**
