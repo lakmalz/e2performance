@@ -75,6 +75,14 @@ class MainActivity : CordovaActivity() {
             // CRITICAL: Apply hidden theme for preload
             // This prevents any visible flash
             applyHiddenMode()
+            
+            // IMMEDIATELY move to back BEFORE super.onCreate renders anything
+            // This happens before the window is even created
+            handler.post {
+                Log.d(TAG, "Moving task to back immediately in onCreate")
+                val moved = moveTaskToBack(true)
+                Log.d(TAG, "moveTaskToBack in onCreate result: $moved")
+            }
         }
         
         super.onCreate(savedInstanceState)
@@ -98,6 +106,8 @@ class MainActivity : CordovaActivity() {
         }
         
         Log.d(TAG, "Loading: $launchUrl")
+        
+        // Note: If in preload mode, onResume will handle moving to back
     }
     
     /**
@@ -106,8 +116,7 @@ class MainActivity : CordovaActivity() {
      * WHY:
      * - Activity must exist to load WebView
      * - But must be invisible to user
-     * - Don't use alpha - causes black flash
-     * - Just make it not focusable so it stays behind
+     * - We'll move to back after creation
      */
     private fun applyHiddenMode() {
         Log.d(TAG, "Applying hidden mode for preload")
@@ -115,8 +124,10 @@ class MainActivity : CordovaActivity() {
         // Make window not focusable so it doesn't steal focus from LoginActivity
         window.addFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
         
-        // The activity will be behind LoginActivity due to task ordering
-        // No need for alpha or size changes
+        // Set the window to be non-touchable
+        window.addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
+        
+        // The activity will be moved to back after onCreate completes
     }
     
     /**
@@ -125,14 +136,18 @@ class MainActivity : CordovaActivity() {
     private fun restoreVisibleMode() {
         Log.d(TAG, "Restoring visible mode")
         
-        // Clear the not focusable flag
+        // Clear the hidden mode flags
         window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
+        window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
         
         // Ensure WebView is visible and focusable
         appView?.view?.visibility = View.VISIBLE
         appView?.view?.isFocusable = true
         appView?.view?.isFocusableInTouchMode = true
         appView?.view?.requestFocus()
+        
+        // No longer in preload mode
+        isPreloadMode = false
     }
     
     /**
@@ -254,9 +269,27 @@ class MainActivity : CordovaActivity() {
     
     /**
      * Handle resume - check for pending hash
+     * 
+     * CRITICAL: If in preload mode and resumed, we need to go back behind LoginActivity
      */
     override fun onResume() {
         super.onResume()
+        
+        Log.d(TAG, "onResume - isPreloadMode: $isPreloadMode")
+        
+        // If still in preload mode, we shouldn't be visible - go back behind other tasks
+        if (isPreloadMode) {
+            Log.d(TAG, "Still in preload mode, moving task to back")
+            // Use handler to ensure this happens after resume completes
+            handler.post {
+                // Since MainActivity is in its own task (separate taskAffinity),
+                // moveTaskToBack(true) will move ONLY this task to back,
+                // allowing LoginActivity's task to remain in front
+                val moved = moveTaskToBack(true)
+                Log.d(TAG, "moveTaskToBack result: $moved")
+            }
+            return
+        }
         
         // Check for pending hash from manager
         CordovaRuntimeManager.consumePendingHash()?.let { hash ->

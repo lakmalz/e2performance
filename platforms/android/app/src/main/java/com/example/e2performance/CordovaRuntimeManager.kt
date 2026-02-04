@@ -3,6 +3,7 @@ package com.example.e2performance
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.util.Log
 import java.lang.ref.WeakReference
 
@@ -83,7 +84,7 @@ object CordovaRuntimeManager {
      * - Prevents duplicate preloads
      * - Tracks timing for performance metrics
      * 
-     * @param context Context for starting activity (should be SplashActivity)
+     * @param context Context for starting activity (should be LoginActivity)
      */
     @Synchronized
     fun startPreload(context: Context) {
@@ -99,14 +100,18 @@ object CordovaRuntimeManager {
         preloadState = PreloadState.IN_PROGRESS
         preloadStartTime = System.currentTimeMillis()
         
-        // Start MainActivity in HIDDEN mode
+        // Start MainActivity in HIDDEN mode with separate task affinity
+        // FLAG_ACTIVITY_NEW_TASK creates in separate task (due to different taskAffinity)
+        // FLAG_ACTIVITY_NO_ANIMATION prevents transition animation
         val intent = Intent(context, MainActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
             putExtra(MainActivity.EXTRA_PRELOAD_MODE, true)
         }
+        
         context.startActivity(intent)
         
-        Log.d(TAG, "MainActivity preload intent sent")
+        Log.d(TAG, "MainActivity preload intent sent (separate task)")
     }
     
     /**
@@ -202,22 +207,28 @@ object CordovaRuntimeManager {
     
     /**
      * Bring preloaded MainActivity to front
+     * Since MainActivity is in a separate task (different taskAffinity),
+     * we use NEW_TASK to bring that task to front
      */
     private fun bringMainActivityToFront(fromActivity: Activity) {
-        Log.d(TAG, "Bringing MainActivity to front...")
+        Log.d(TAG, "Bringing MainActivity to front (from separate task)...")
         
         val intent = Intent(fromActivity, MainActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
-            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            // NEW_TASK will bring the existing task containing MainActivity to front
+            // (because MainActivity has singleTask launch mode and different taskAffinity)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)  // Deliver via onNewIntent
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)   // Clear anything above MainActivity
+            addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION) // Disable default task switch animation
             putExtra(MainActivity.EXTRA_PRELOAD_MODE, false)
             putExtra(MainActivity.EXTRA_SHOW_NOW, true)
             pendingHash?.let { putExtra(MainActivity.EXTRA_HASH, it) }
         }
         fromActivity.startActivity(intent)
         
-        // Smooth fade transition
+        // Disable all system transitions - use theme fade instead
         @Suppress("DEPRECATION")
-        fromActivity.overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+        fromActivity.overridePendingTransition(0, 0)
         
         preloadState = PreloadState.SHOWING
         

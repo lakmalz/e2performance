@@ -70,9 +70,6 @@ class SplashActivity : AppCompatActivity() {
     
     /**
      * Navigate to LoginActivity
-
-    /**
-     * Navigate to LoginActivity
      */
     private fun navigateToLogin() {
         if (hasNavigated) return
@@ -84,8 +81,9 @@ class SplashActivity : AppCompatActivity() {
         val intent = Intent(this, LoginActivity::class.java)
         startActivity(intent)
         
-        // Fade out transition
-        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+        // No animation
+        @Suppress("DEPRECATION")
+        overridePendingTransition(0, 0)
         
         finish()
     }

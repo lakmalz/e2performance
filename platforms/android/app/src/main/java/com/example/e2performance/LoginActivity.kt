@@ -51,16 +51,16 @@ class LoginActivity : AppCompatActivity() {
         Log.d(TAG, "LoginActivity onCreate")
         Log.d(TAG, "═══════════════════════════════════════")
         
+        setupViews()
+        
         // Check if coming from logout
         val fromLogout = intent.getBooleanExtra(EXTRA_FROM_LOGOUT, false)
         if (fromLogout) {
-            Log.d(TAG, "Returned from HARD LOGOUT")
-            // Trigger new preload for next login
-            triggerNewPreload()
+            Log.d(TAG, "Returned from HARD LOGOUT - ready for fresh login")
         }
         
-        setupViews()
-        checkPreloadStatus()
+        // DO NOT preload here - just wait for user to tap login
+        // This avoids any background activity animations
     }
     
     private fun setupViews() {
@@ -68,49 +68,6 @@ class LoginActivity : AppCompatActivity() {
         
         loginButton.setOnClickListener {
             performLogin()
-        }
-    }
-    
-    /**
-     * Trigger new preload after logout
-     * 
-     * WHY:
-     * - After logout, MainActivity was destroyed
-     * - Need fresh Cordova runtime for next session
-     * - Start preloading while user enters credentials
-     */
-    private fun triggerNewPreload() {
-        Log.d(TAG, "Triggering new preload after logout")
-        CordovaRuntimeManager.resetState()
-        
-        // Delay slightly to let activity settle
-        handler.postDelayed({
-            CordovaRuntimeManager.startPreload(applicationContext)
-        }, 500)
-    }
-    
-    /**
-     * Check and display preload status
-     */
-    private fun checkPreloadStatus() {
-        val state = CordovaRuntimeManager.getState()
-        Log.d(TAG, "Current preload state: $state")
-        
-        when (state) {
-            CordovaRuntimeManager.PreloadState.READY -> {
-                Log.d(TAG, "Preload ready - good to go!")
-            }
-            CordovaRuntimeManager.PreloadState.IN_PROGRESS -> {
-                Log.d(TAG, "Preload in progress...")
-            }
-            CordovaRuntimeManager.PreloadState.NOT_STARTED -> {
-                // Start preload if not started
-                Log.d(TAG, "Preload not started - starting now")
-                CordovaRuntimeManager.startPreload(applicationContext)
-            }
-            else -> {
-                Log.d(TAG, "Preload state: $state")
-            }
         }
     }
     
@@ -139,19 +96,27 @@ class LoginActivity : AppCompatActivity() {
      * Handle successful login
      * 
      * CRITICAL:
-     * - Shows preloaded MainActivity
+     * - Starts MainActivity directly
      * - Navigates to #dashboard
      * - Finishes LoginActivity (no back navigation)
      */
     private fun onLoginSuccess() {
         Log.d(TAG, "═══════════════════════════════════════")
-        Log.d(TAG, "Login successful! Showing MainActivity...")
+        Log.d(TAG, "Login successful! Starting MainActivity...")
         Log.d(TAG, "═══════════════════════════════════════")
         
-        // Show preloaded MainActivity and navigate to dashboard
-        CordovaRuntimeManager.showMainActivity(this, "dashboard")
+        // Start MainActivity directly with dashboard hash
+        val intent = Intent(this, MainActivity::class.java).apply {
+            putExtra(MainActivity.EXTRA_PRELOAD_MODE, false)
+            putExtra(MainActivity.EXTRA_HASH, "dashboard")
+        }
+        startActivity(intent)
         
-        // Note: LoginActivity.finish() is called inside showMainActivity
+        // No animation
+        @Suppress("DEPRECATION")
+        overridePendingTransition(0, 0)
+        
+        finish()
     }
     
     /**
