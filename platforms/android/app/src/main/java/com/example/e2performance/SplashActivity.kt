@@ -49,6 +49,7 @@ class SplashActivity : AppCompatActivity() {
         setContentView(R.layout.activity_splash)
         
         // Make immersive (hide system bars)
+        @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = (
             View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
             or View.SYSTEM_UI_FLAG_FULLSCREEN
@@ -60,70 +61,16 @@ class SplashActivity : AppCompatActivity() {
         // STEP 1: Reset any previous state (fresh start)
         CordovaRuntimeManager.resetState()
         
-        // STEP 2: Start preloading MainActivity in background
-        startPreload()
-        
-        // STEP 3: Set minimum splash duration
+        // STEP 2: Navigate to Login after minimum splash duration
+        // Preload will be triggered from LoginActivity AFTER it's visible
         handler.postDelayed({
-            checkAndNavigate()
+            navigateToLogin()
         }, MIN_SPLASH_DURATION)
-        
-        // STEP 4: Set maximum splash duration (failsafe)
-        handler.postDelayed({
-            forceNavigate()
-        }, MAX_SPLASH_DURATION)
     }
     
     /**
-     * Start preloading MainActivity
-     * 
-     * WHY DELAYED 100ms:
-     * - Let SplashActivity finish rendering
-     * - Prevent UI jank during transition
-     */
-    private fun startPreload() {
-        handler.postDelayed({
-            Log.d(TAG, "Triggering MainActivity preload...")
-            CordovaRuntimeManager.startPreload(applicationContext)
-        }, 100)
-    }
-    
-    /**
-     * Check if preload is ready and navigate
-     */
-    private fun checkAndNavigate() {
-        if (hasNavigated) return
-        
-        val state = CordovaRuntimeManager.getState()
-        Log.d(TAG, "Checking preload state: $state")
-        
-        when (state) {
-            CordovaRuntimeManager.PreloadState.READY -> {
-                navigateToLogin()
-            }
-            CordovaRuntimeManager.PreloadState.IN_PROGRESS -> {
-                // Wait a bit more
-                handler.postDelayed({
-                    checkAndNavigate()
-                }, 500)
-            }
-            else -> {
-                // Proceed anyway - LoginActivity will handle
-                navigateToLogin()
-            }
-        }
-    }
-    
-    /**
-     * Force navigation after max duration
-     */
-    private fun forceNavigate() {
-        if (hasNavigated) return
-        
-        Log.w(TAG, "Max splash duration reached. Forcing navigation.")
-        navigateToLogin()
-    }
-    
+     * Navigate to LoginActivity
+
     /**
      * Navigate to LoginActivity
      */

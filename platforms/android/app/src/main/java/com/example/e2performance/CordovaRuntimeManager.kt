@@ -215,6 +215,10 @@ object CordovaRuntimeManager {
         }
         fromActivity.startActivity(intent)
         
+        // Smooth fade transition
+        @Suppress("DEPRECATION")
+        fromActivity.overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+        
         preloadState = PreloadState.SHOWING
         
         // Finish login activity so back doesn't go there
@@ -233,6 +237,11 @@ object CordovaRuntimeManager {
             putExtra(MainActivity.EXTRA_HASH, hash)
         }
         fromActivity.startActivity(intent)
+        
+        // Smooth fade transition
+        @Suppress("DEPRECATION")
+        fromActivity.overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+        
         fromActivity.finish()
         
         preloadState = PreloadState.SHOWING

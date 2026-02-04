@@ -21,7 +21,7 @@
         <activity 
             android:name=".LoginActivity" 
             android:exported="false" 
-            android:theme="@style/Theme.AppCompat.Light.NoActionBar"
+            android:theme="@style/Theme.App.Login"
             android:screenOrientation="portrait" />
         
         <!-- MAIN ACTIVITY - CordovaActivity with preload -->
@@ -31,7 +31,7 @@
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation"
             android:label="@string/activity_name"
             android:launchMode="singleTask"
-            android:theme="@style/Theme.AppCompat.Light.NoActionBar"
+            android:theme="@style/Theme.App.Main"
             android:windowSoftInputMode="adjustResize"
             android:screenOrientation="portrait" />
         

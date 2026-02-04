@@ -106,25 +106,17 @@ class MainActivity : CordovaActivity() {
      * WHY:
      * - Activity must exist to load WebView
      * - But must be invisible to user
-     * - Using 1x1 window or transparent theme
+     * - Don't use alpha - causes black flash
+     * - Just make it not focusable so it stays behind
      */
     private fun applyHiddenMode() {
         Log.d(TAG, "Applying hidden mode for preload")
         
-        // Make window minimal/transparent
-        window.setFlags(
-            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
-            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
-        )
+        // Make window not focusable so it doesn't steal focus from LoginActivity
+        window.addFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
         
-        // Set minimal dimensions (will be restored when showing)
-        window.setLayout(1, 1)
-        
-        // Move off-screen (backup measure)
-        window.attributes = window.attributes.apply {
-            x = -10000
-            y = -10000
-        }
+        // The activity will be behind LoginActivity due to task ordering
+        // No need for alpha or size changes
     }
     
     /**
@@ -133,23 +125,14 @@ class MainActivity : CordovaActivity() {
     private fun restoreVisibleMode() {
         Log.d(TAG, "Restoring visible mode")
         
-        // Clear not touchable flag
-        window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
+        // Clear the not focusable flag
+        window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
         
-        // Restore full screen
-        window.setLayout(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.MATCH_PARENT
-        )
-        
-        // Move back to normal position
-        window.attributes = window.attributes.apply {
-            x = 0
-            y = 0
-        }
-        
-        // Ensure WebView is visible
+        // Ensure WebView is visible and focusable
         appView?.view?.visibility = View.VISIBLE
+        appView?.view?.isFocusable = true
+        appView?.view?.isFocusableInTouchMode = true
+        appView?.view?.requestFocus()
     }
     
     /**
