@@ -56,27 +56,16 @@ class LoginActivity : AppCompatActivity() {
         // Check if coming from logout
         val fromLogout = intent.getBooleanExtra(EXTRA_FROM_LOGOUT, false)
         if (fromLogout) {
-            Log.d(TAG, "Returned from HARD LOGOUT - ready for fresh login")
+            Log.d(TAG, "Returned from HARD LOGOUT")
         }
         
-        // Trigger preload after LoginActivity is fully visible
-        triggerPreloadWhenReady()
-    }
-    
-    /**
-     * Trigger preload after LoginActivity is settled
-     * Delay ensures login screen is fully visible before preload starts
-     */
-    private fun triggerPreloadWhenReady() {
+        // Start preloading MainActivity in background after 500ms
         handler.postDelayed({
-            val state = CordovaRuntimeManager.getState()
-            Log.d(TAG, "Current preload state: $state")
-            
-            if (state == CordovaRuntimeManager.PreloadState.NOT_STARTED ||
-                state == CordovaRuntimeManager.PreloadState.FAILED) {
-                Log.d(TAG, "Triggering MainActivity preload...")
-                CordovaRuntimeManager.startPreload(this)
-            }
+            Log.d(TAG, "Starting MainActivity preload...")
+            val intent = Intent(this, MainActivity::class.java)
+            intent.putExtra("PRELOAD_MODE", true)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
+            startActivity(intent)
         }, 500)
     }
     
@@ -119,12 +108,16 @@ class LoginActivity : AppCompatActivity() {
      * - Finishes LoginActivity (no back navigation)
      */
     private fun onLoginSuccess() {
-        Log.d(TAG, "═══════════════════════════════════════")
-        Log.d(TAG, "Login successful! Showing MainActivity...")
-        Log.d(TAG, "═══════════════════════════════════════")
+        Log.d(TAG, "Login successful!")
         
-        // Use CordovaRuntimeManager to show preloaded MainActivity
-        CordovaRuntimeManager.showMainActivity(this, "dashboard")
+        // Bring MainActivity to front and navigate to #settings
+        val intent = Intent(this, MainActivity::class.java)
+        intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+        intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
+        intent.putExtra("SHOW_NOW", true)
+        intent.putExtra("HASH", "settings")
+        startActivity(intent)
+        finish()
     }
     
     /**

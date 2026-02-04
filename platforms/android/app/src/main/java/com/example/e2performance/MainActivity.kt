@@ -63,19 +63,13 @@ class MainActivity : CordovaActivity() {
     private var preloadTimeoutRunnable: Runnable? = null
     
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Determine if this is preload mode BEFORE super.onCreate
-        isPreloadMode = intent.getBooleanExtra(EXTRA_PRELOAD_MODE, false)
+        val preloadMode = intent.getBooleanExtra("PRELOAD_MODE", false)
         
-        Log.d(TAG, "═══════════════════════════════════════")
-        Log.d(TAG, "MainActivity onCreate")
-        Log.d(TAG, "Preload mode: $isPreloadMode")
-        Log.d(TAG, "═══════════════════════════════════════")
+        Log.d(TAG, "MainActivity onCreate - preloadMode: $preloadMode")
         
-        if (isPreloadMode) {
-            // CRITICAL: Apply transparent theme BEFORE super.onCreate
-            // This makes the entire window invisible - user sees LoginActivity behind
+        if (preloadMode) {
+            // Apply transparent theme BEFORE super.onCreate
             setTheme(R.style.Theme_App_Transparent)
-            applyHiddenMode()
         }
         
         super.onCreate(savedInstanceState)
@@ -241,27 +235,27 @@ class MainActivity : CordovaActivity() {
      * - Called when LoginActivity brings us to front
      * - Contains show/navigation instructions
      */
-    override fun onNewIntent(intent: Intent) {
+    override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
         setIntent(intent)
         
-        Log.d(TAG, "═══════════════════════════════════════")
-        Log.d(TAG, "onNewIntent received")
-        Log.d(TAG, "═══════════════════════════════════════")
+        val showNow = intent?.getBooleanExtra("SHOW_NOW", false) ?: false
+        val hash = intent?.getStringExtra("HASH")
         
-        val showNow = intent.getBooleanExtra(EXTRA_SHOW_NOW, false)
-        val hash = intent.getStringExtra(EXTRA_HASH)
-        
-        Log.d(TAG, "Show now: $showNow, Hash: $hash")
+        Log.d(TAG, "onNewIntent - showNow: $showNow, hash: $hash")
         
         if (showNow) {
-            isPreloadMode = false
-            restoreVisibleMode()
+            // Make MainActivity visible
+            setTheme(R.style.Theme_App_Main)
+            window.setBackgroundDrawableResource(android.R.color.white)
             
-            // Navigate to hash
-            hash?.let {
+            // Navigate to hash if provided
+            if (hash != null) {
                 handler.postDelayed({
-                    navigateToHash(it)
+                    val jsCode = "window.location.hash = '#$hash';"
+                    val webView = getWebView()
+                    webView?.evaluateJavascript(jsCode, null)
+                    Log.d(TAG, "Navigated to #$hash")
                 }, 100)
             }
         }
