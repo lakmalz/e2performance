@@ -59,8 +59,25 @@ class LoginActivity : AppCompatActivity() {
             Log.d(TAG, "Returned from HARD LOGOUT - ready for fresh login")
         }
         
-        // DO NOT preload here - just wait for user to tap login
-        // This avoids any background activity animations
+        // Trigger preload after LoginActivity is fully visible
+        triggerPreloadWhenReady()
+    }
+    
+    /**
+     * Trigger preload after LoginActivity is settled
+     * Delay ensures login screen is fully visible before preload starts
+     */
+    private fun triggerPreloadWhenReady() {
+        handler.postDelayed({
+            val state = CordovaRuntimeManager.getState()
+            Log.d(TAG, "Current preload state: $state")
+            
+            if (state == CordovaRuntimeManager.PreloadState.NOT_STARTED ||
+                state == CordovaRuntimeManager.PreloadState.FAILED) {
+                Log.d(TAG, "Triggering MainActivity preload...")
+                CordovaRuntimeManager.startPreload(this)
+            }
+        }, 500)
     }
     
     private fun setupViews() {
@@ -96,27 +113,18 @@ class LoginActivity : AppCompatActivity() {
      * Handle successful login
      * 
      * CRITICAL:
-     * - Starts MainActivity directly
+     * - Uses preloaded MainActivity if ready
+     * - Falls back to starting fresh MainActivity
      * - Navigates to #dashboard
      * - Finishes LoginActivity (no back navigation)
      */
     private fun onLoginSuccess() {
         Log.d(TAG, "═══════════════════════════════════════")
-        Log.d(TAG, "Login successful! Starting MainActivity...")
+        Log.d(TAG, "Login successful! Showing MainActivity...")
         Log.d(TAG, "═══════════════════════════════════════")
         
-        // Start MainActivity directly with dashboard hash
-        val intent = Intent(this, MainActivity::class.java).apply {
-            putExtra(MainActivity.EXTRA_PRELOAD_MODE, false)
-            putExtra(MainActivity.EXTRA_HASH, "dashboard")
-        }
-        startActivity(intent)
-        
-        // No animation
-        @Suppress("DEPRECATION")
-        overridePendingTransition(0, 0)
-        
-        finish()
+        // Use CordovaRuntimeManager to show preloaded MainActivity
+        CordovaRuntimeManager.showMainActivity(this, "dashboard")
     }
     
     /**

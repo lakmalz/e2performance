@@ -72,17 +72,10 @@ class MainActivity : CordovaActivity() {
         Log.d(TAG, "═══════════════════════════════════════")
         
         if (isPreloadMode) {
-            // CRITICAL: Apply hidden theme for preload
-            // This prevents any visible flash
+            // CRITICAL: Apply transparent theme BEFORE super.onCreate
+            // This makes the entire window invisible - user sees LoginActivity behind
+            setTheme(R.style.Theme_App_Transparent)
             applyHiddenMode()
-            
-            // IMMEDIATELY move to back BEFORE super.onCreate renders anything
-            // This happens before the window is even created
-            handler.post {
-                Log.d(TAG, "Moving task to back immediately in onCreate")
-                val moved = moveTaskToBack(true)
-                Log.d(TAG, "moveTaskToBack in onCreate result: $moved")
-            }
         }
         
         super.onCreate(savedInstanceState)
@@ -116,7 +109,7 @@ class MainActivity : CordovaActivity() {
      * WHY:
      * - Activity must exist to load WebView
      * - But must be invisible to user
-     * - We'll move to back after creation
+     * - Make window fully transparent so user sees LoginActivity behind
      */
     private fun applyHiddenMode() {
         Log.d(TAG, "Applying hidden mode for preload")
@@ -127,7 +120,7 @@ class MainActivity : CordovaActivity() {
         // Set the window to be non-touchable
         window.addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
         
-        // The activity will be moved to back after onCreate completes
+        // Window is already transparent via Theme.App.Transparent
     }
     
     /**
@@ -135,6 +128,13 @@ class MainActivity : CordovaActivity() {
      */
     private fun restoreVisibleMode() {
         Log.d(TAG, "Restoring visible mode")
+        
+        // Switch to normal theme with white background
+        setTheme(R.style.Theme_App_Main)
+        
+        // Set white background on window
+        window.setBackgroundDrawableResource(android.R.color.white)
+        window.decorView.setBackgroundResource(android.R.color.white)
         
         // Clear the hidden mode flags
         window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
@@ -270,24 +270,16 @@ class MainActivity : CordovaActivity() {
     /**
      * Handle resume - check for pending hash
      * 
-     * CRITICAL: If in preload mode and resumed, we need to go back behind LoginActivity
+     * CRITICAL: If in preload mode, the window is transparent so user sees LoginActivity
      */
     override fun onResume() {
         super.onResume()
         
         Log.d(TAG, "onResume - isPreloadMode: $isPreloadMode")
         
-        // If still in preload mode, we shouldn't be visible - go back behind other tasks
+        // If in preload mode, just return - window is already transparent
         if (isPreloadMode) {
-            Log.d(TAG, "Still in preload mode, moving task to back")
-            // Use handler to ensure this happens after resume completes
-            handler.post {
-                // Since MainActivity is in its own task (separate taskAffinity),
-                // moveTaskToBack(true) will move ONLY this task to back,
-                // allowing LoginActivity's task to remain in front
-                val moved = moveTaskToBack(true)
-                Log.d(TAG, "moveTaskToBack result: $moved")
-            }
+            Log.d(TAG, "Still in preload mode, window is transparent")
             return
         }
         

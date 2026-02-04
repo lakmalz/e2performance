@@ -8,7 +8,7 @@
         <item name="android:windowOptOutEdgeToEdgeEnforcement" tools:targetApi="35">true</item>
     </style>
     
-    <!-- Main app theme with white background to avoid black flash -->
+    <!-- Main app theme with white background -->
     <style name="Theme.App.Main" parent="Theme.AppCompat.Light.NoActionBar">
         <item name="android:windowBackground">@android:color/white</item>
         <item name="android:colorBackground">@android:color/white</item>
@@ -18,6 +18,17 @@
     <!-- Login activity theme -->
     <style name="Theme.App.Login" parent="Theme.App.Main">
         <item name="android:windowBackground">@android:color/white</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
+    
+    <!-- Fully transparent theme for preload (invisible to user) -->
+    <style name="Theme.App.Transparent" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:backgroundDimEnabled">false</item>
         <item name="android:windowAnimationStyle">@null</item>
     </style>
 </resources>

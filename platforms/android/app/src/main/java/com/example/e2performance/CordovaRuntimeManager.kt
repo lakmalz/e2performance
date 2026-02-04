@@ -100,18 +100,22 @@ object CordovaRuntimeManager {
         preloadState = PreloadState.IN_PROGRESS
         preloadStartTime = System.currentTimeMillis()
         
-        // Start MainActivity in HIDDEN mode with separate task affinity
-        // FLAG_ACTIVITY_NEW_TASK creates in separate task (due to different taskAffinity)
-        // FLAG_ACTIVITY_NO_ANIMATION prevents transition animation
+        // Start MainActivity in HIDDEN mode (same task, will be behind LoginActivity)
+        // FLAG_ACTIVITY_NO_ANIMATION prevents any visible transition
         val intent = Intent(context, MainActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
             putExtra(MainActivity.EXTRA_PRELOAD_MODE, true)
         }
         
         context.startActivity(intent)
         
-        Log.d(TAG, "MainActivity preload intent sent (separate task)")
+        // Ensure no animation
+        if (context is Activity) {
+            @Suppress("DEPRECATION")
+            context.overridePendingTransition(0, 0)
+        }
+        
+        Log.d(TAG, "MainActivity preload intent sent")
     }
     
     /**
@@ -208,27 +212,30 @@ object CordovaRuntimeManager {
     /**
      * Bring preloaded MainActivity to front
      * Since MainActivity is in a separate task (different taskAffinity),
-     * we use NEW_TASK to bring that task to front
+     * In single task mode, MainActivity is already in the same task stack.
+     * We just need to bring it to front and make it visible.
      */
     private fun bringMainActivityToFront(fromActivity: Activity) {
-        Log.d(TAG, "Bringing MainActivity to front (from separate task)...")
+        Log.d(TAG, "Bringing MainActivity to front...")
         
-        val intent = Intent(fromActivity, MainActivity::class.java).apply {
-            // NEW_TASK will bring the existing task containing MainActivity to front
-            // (because MainActivity has singleTask launch mode and different taskAffinity)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)  // Deliver via onNewIntent
-            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)   // Clear anything above MainActivity
-            addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION) // Disable default task switch animation
-            putExtra(MainActivity.EXTRA_PRELOAD_MODE, false)
-            putExtra(MainActivity.EXTRA_SHOW_NOW, true)
-            pendingHash?.let { putExtra(MainActivity.EXTRA_HASH, it) }
+        // Get the preloaded MainActivity and restore visibility
+        val mainActivity = mainActivityRef?.get()
+        if (mainActivity != null) {
+            // Tell MainActivity to show itself
+            val intent = Intent(fromActivity, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+                addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                putExtra(MainActivity.EXTRA_PRELOAD_MODE, false)
+                putExtra(MainActivity.EXTRA_SHOW_NOW, true)
+                pendingHash?.let { putExtra(MainActivity.EXTRA_HASH, it) }
+            }
+            fromActivity.startActivity(intent)
+            
+            // No animation
+            @Suppress("DEPRECATION")
+            fromActivity.overridePendingTransition(0, 0)
         }
-        fromActivity.startActivity(intent)
-        
-        // Disable all system transitions - use theme fade instead
-        @Suppress("DEPRECATION")
-        fromActivity.overridePendingTransition(0, 0)
         
         preloadState = PreloadState.SHOWING
         
@@ -243,7 +250,8 @@ object CordovaRuntimeManager {
      */
     private fun startFreshMainActivity(fromActivity: Activity, hash: String) {
         val intent = Intent(fromActivity, MainActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
             putExtra(MainActivity.EXTRA_PRELOAD_MODE, false)
             putExtra(MainActivity.EXTRA_HASH, hash)
         }
