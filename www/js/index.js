@@ -27,7 +27,7 @@
     };
 
     const ROUTES = {
-        DASHBOARD: '',
+        DASHBOARD: '#dashboard',
         SETTINGS: '#settings'
     };
 
@@ -42,14 +42,53 @@
     function onDeviceReady() {
         console.log('Running cordova-' + cordova.platformId + '@' + cordova.version);
         
+        // CRITICAL: Signal to native that content is ready
+        // This is used by MainActivity to know preload is complete
+        signalNativeReady();
+        
         // Check if NavigationPlugin is available
         if (window.NavigationPlugin) {
             console.log('✓ NavigationPlugin available');
         } else {
-            console.error('✗ NavigationPlugin NOT available');
+            console.log('✗ NavigationPlugin NOT available - checking NativeLogout');
+        }
+        
+        // Check if NativeLogout interface is available (new preload architecture)
+        if (window.NativeLogout) {
+            console.log('✓ NativeLogout interface available');
         }
         
         initialize();
+    }
+    
+    /**
+     * Signal to native that WebView content is fully loaded
+     * This is critical for the preload architecture
+     */
+    function signalNativeReady() {
+        console.log('Signaling native that content is ready...');
+        
+        // Try multiple methods to ensure native gets the signal
+        
+        // Method 1: Call NativePreload.ready() if available
+        if (window.NativePreload && typeof window.NativePreload.ready === 'function') {
+            window.NativePreload.ready();
+            console.log('✓ Called NativePreload.ready()');
+        }
+        
+        // Method 2: Dispatch custom event for native to listen
+        try {
+            document.dispatchEvent(new CustomEvent('cordovaContentReady', {
+                detail: { timestamp: Date.now() }
+            }));
+            console.log('✓ Dispatched cordovaContentReady event');
+        } catch (e) {
+            console.warn('Failed to dispatch event:', e);
+        }
+        
+        // Method 3: Set global flag
+        window.cordovaContentReady = true;
+        console.log('✓ Set window.cordovaContentReady = true');
     }
 
     function initialize() {
@@ -80,9 +119,18 @@
     }
 
     function handleLogoutClick() {
-        console.log('Logout button clicked - calling NavigationPlugin.logout()');
+        console.log('Logout button clicked');
         
+        // Try NativeLogout interface first (new preload architecture)
+        if (window.NativeLogout && typeof window.NativeLogout.logout === 'function') {
+            console.log('Calling NativeLogout.logout()...');
+            window.NativeLogout.logout();
+            return;
+        }
+        
+        // Fallback to NavigationPlugin (old architecture)
         if (window.NavigationPlugin) {
+            console.log('Calling NavigationPlugin.logout()...');
             NavigationPlugin.logout(
                 function(result) {
                     console.log('✓ Logout successful:', result);
@@ -92,17 +140,15 @@
                     alert('Logout failed: ' + error);
                 }
             );
-        } else {
-            console.error('NavigationPlugin not available');
-            alert('Navigation plugin not available');
+            return;
         }
-    }
-
-    function isAndroidBridgeAvailable() {
-        return typeof AndroidBridge !== 'undefined';
+        
+        console.error('No logout interface available');
+        alert('Logout not available');
     }
 
     function navigateTo(route) {
+        console.log('Navigating to: ' + route);
         window.location.hash = route;
     }
 
@@ -113,12 +159,15 @@
 
     function showPage() {
         const currentHash = window.location.hash;
-        const isSettingsPage = currentHash === ROUTES.SETTINGS;
         
         console.log('Current hash: ' + currentHash);
+        
+        // Determine which page to show based on hash
+        const isDashboard = !currentHash || currentHash === '' || currentHash === '#' || currentHash === '#dashboard';
+        const isSettings = currentHash === '#settings';
 
-        togglePageVisibility(PAGES.DASHBOARD, !isSettingsPage);
-        togglePageVisibility(PAGES.SETTINGS, isSettingsPage);
+        togglePageVisibility(PAGES.DASHBOARD, isDashboard);
+        togglePageVisibility(PAGES.SETTINGS, isSettings);
     }
 
     function togglePageVisibility(pageId, isVisible) {
